@@ -1,0 +1,58 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: set up go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: build release
+        run: |
+          mkdir -p build
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -v -o build/yt-dlp-web-${{ matrix.goos }}-${{ matrix.goarch }} ./...
+
+      - name: package release
+        run: |
+          if [[ "${{ matrix.goos }}" == "windows" ]]; then
+            zip -r yt-dlp-web-${{ matrix.goos }}-${{ matrix.goarch }}.zip build/*
+          else
+            tar czvf yt-dlp-web-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz -C ./build .
+          fi
+
+      - name: create github release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            Changes for this release:
+            - Add a list of changes here.
+          draft: true
+          prerelease: false
+
+      - name: upload github release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./yt-dlp-web-${{ matrix.goos }}-${{ matrix.goarch }}.*
+          asset_name: yt-dlp-web-${{ matrix.goos }}-${{ matrix.goarch }}.*
+          asset_content_type: application/octet-stream
