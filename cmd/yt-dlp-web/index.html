@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Downloader</title>
+    <style>
+
+        body, h1, p, button, input { margin: 0; padding: 0; font-family: 'Arial', sans-serif; }
+        body { display: flex; justify-content: center; height: 100vh; background-color: #f4f4f4; }
+        #container { margin: 40px 20px 40px 20px; background-color: #fff; padding: 20px; border-radius: 4px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); width: 600px; max-height: 80vh; min-height: 300px; overflow-y: auto;}
+
+        h1 { margin-bottom: 20px; text-decoration: none; font-family: "Raleway", sans-serif; font-weight: 300; color: #080808; transition: all 0.4s ease 0s; text-align:center; text-transform:uppercase; font-size:26px; letter-spacing:1px; }
+        h1:after,.eight h1:before { content: " "; display: block; border-bottom: 2px solid #ccc; }
+        a, a:visited { color: #222;  text-decoration: none;  }
+
+        input[type="text"] { padding: 10px; width: 70%; margin-right: 10px; border-radius: 2px; border: 1px solid #ccc; }
+        button { width: 20%; min-width: 100px; padding: 10px 20px; background-color: #007BFF; color: #fff; border: none; border-radius: 2px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+
+        #inputs { display: flex; justify-content: center; align-items: center; }
+        #outputs { margin-top: 20px; }
+        #outputs div { background-color: #e9e9e9; padding: 10px; margin-top: 10px; border-radius: 2px; }
+        #outputs pre { white-space: pre-wrap; word-wrap: break-word; text-align: left; padding-top: 5px; margin: 0; }
+        #outputs .item { padding: 0; margin-top: 0; white-space: pre-wrap; word-wrap: break-word; text-align: left; }
+
+        .error { position: relative; animation: shake .2s linear; animation-iteration-count: 3; }
+        @keyframes shake {
+            0% { left: -4px; background-color: #fadddd; }
+            25% { left: -2px; }
+            50% { left: 0; right:0 }
+            50% { right: -2px; }
+            100% { right: -4px; }
+        }
+    </style>
+</head>
+
+<body>
+<div id="container">
+    <div class="eight">
+        <a href="/"><h1>Music Downloader</h1></a>
+    </div>
+    <form id="commandForm">
+        <div id="inputs">
+            <input type="text" id="command" placeholder="Enter URL to download">
+            <button>Download</button>
+        </div>
+    </form>
+    <div id="outputs"></div>
+</div>
+
+<script>
+
+    const socketModule = (function () {
+        let socket;
+
+        function createWebSocket(onError, onMessage) {
+            const ws = new WebSocket((window.location.protocol === 'http:' ? 'ws' : 'wss') + '://' + window.location.host + '/ws');
+            ws.onerror = onError;
+            ws.onmessage = onMessage;
+            return ws;
+        }
+
+        async function getSocket(onError, onMessage) {
+            if (!socket || socket.readyState === WebSocket.CLOSED) {
+                socket = createWebSocket(onError, onMessage);
+            }
+            return new Promise((resolve) => {
+                if (socket.readyState === WebSocket.OPEN) {
+                    resolve(socket);
+                } else {
+                    socket.addEventListener('open', () => resolve(socket), {once: true});
+                }
+            });
+        }
+
+        return {
+            getSocket
+        };
+    })();
+
+    const mainModule = (function () {
+        let commandCount = 0;
+
+        async function sendCommand(cmd) {
+            let cmdID = "cmd_" + commandCount++;
+            let cmdPayload = {id: cmdID, command: cmd};
+            let outputDiv = document.createElement("div");
+            outputDiv.id = cmdID;
+            outputDiv.innerHTML = `<div class="item"><strong>Command:</strong> ${cmd} <br><strong>Status: </strong><span class="status">Sending...</span></div><pre></pre>`;
+            document.getElementById("outputs").prepend(outputDiv);
+
+            let connectedSocket = await socketModule.getSocket(
+                error => {
+                    let outputDiv = document.getElementById(cmdID);
+                    if (outputDiv) {
+                        let statusSpan = outputDiv.querySelector(".status");
+                        if (statusSpan.textContent !== 'Done') {
+                            statusSpan.textContent = "Error connecting";
+                        }
+                    }
+                },
+                event => {
+                    let data = JSON.parse(event.data);
+                    let outputDiv = document.getElementById(data.id);
+                    if (outputDiv) {
+                        if (data.status) {
+                            outputDiv.querySelector(".status").textContent = data.status;
+                        }
+                        if (data.output) {
+                            let pre = outputDiv.querySelector("pre");
+                            pre.textContent += data.output + '\n';
+                        }
+                    }
+                }
+            );
+            connectedSocket.send(JSON.stringify(cmdPayload));
+        }
+
+        return {
+            sendCommand
+        };
+    })();
+
+    document.addEventListener('DOMContentLoaded', function () {
+        let form = document.getElementById('commandForm');
+        form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                let cmd = document.getElementById("command");
+                let cmdValue = cmd.value.trim();
+                if (cmdValue === '') {
+                    cmd.classList.add('error');
+                    setTimeout(function () {
+                        cmd.classList.remove('error');
+                    }, 300);
+                } else {
+                    mainModule.sendCommand(cmdValue);
+                }
+            }
+        )
+    });
+
+</script>
+</body>
+</html>
