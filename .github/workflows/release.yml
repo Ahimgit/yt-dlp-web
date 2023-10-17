@@ -8,51 +8,54 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        goos: [linux, windows, darwin]
-        goarch: [amd64, arm64]
     steps:
       - uses: actions/checkout@v3
 
-      - name: set up go
+      - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version: '1.20'
 
-      - name: build release
+      - name: Build releases
         run: |
-          mkdir -p build
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -v -o build/yt-dlp-web-${{ matrix.goos }}-${{ matrix.goarch }} ./...
+          mkdir build
+          GOOS=windows GOARCH=amd64 go build -v -o build/yt-dlp-web-windows-amd64.exe ./...
+          GOOS=windows GOARCH=arm64 go build -v -o build/yt-dlp-web-windows-arm64.exe ./...
+          GOOS=linux GOARCH=amd64 go build -v -o build/yt-dlp-web-linux-amd64 ./...
+          GOOS=linux GOARCH=arm64 go build -v -o build/yt-dlp-web-linux-arm64 ./...
+          GOOS=darwin GOARCH=amd64 go build -v -o build/yt-dlp-web-darwin-amd64 ./...
+          GOOS=darwin GOARCH=arm64 go build -v -o build/yt-dlp-web-darwin-arm64 ./...
 
-      - name: package release
+      - name: Package releases
         run: |
-          if [[ "${{ matrix.goos }}" == "windows" ]]; then
-            zip -r yt-dlp-web-${{ matrix.goos }}-${{ matrix.goarch }}.zip build/*
-          else
-            tar czvf yt-dlp-web-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz -C ./build .
-          fi
+          zip -j yt-dlp-web-windows-amd64.zip build/yt-dlp-web-windows-amd64.exe
+          zip -j yt-dlp-web-windows-arm64.zip build/yt-dlp-web-windows-arm64.exe
+          tar czvf yt-dlp-web-linux-amd64.tar.gz -C build yt-dlp-web-linux-amd64
+          tar czvf yt-dlp-web-linux-arm64.tar.gz -C build yt-dlp-web-linux-arm64
+          tar czvf yt-dlp-web-darwin-amd64.tar.gz -C build yt-dlp-web-darwin-amd64
+          tar czvf yt-dlp-web-darwin-arm64.tar.gz -C build yt-dlp-web-darwin-arm64
 
-      - name: create github release
+      - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          draft: true
+          prerelease: false
           body: |
             Changes for this release:
             - Add a list of changes here.
-          draft: true
-          prerelease: false
-
-      - name: upload github release assets
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./yt-dlp-web-${{ matrix.goos }}-${{ matrix.goarch }}.*
-          asset_name: yt-dlp-web-${{ matrix.goos }}-${{ matrix.goarch }}.*
-          asset_content_type: application/octet-stream
+          files: |
+            yt-dlp-web-linux-amd64.tar.gz
+            yt-dlp-web-linux-arm64.tar.gz
+            yt-dlp-web-windows-amd64.zip
+            yt-dlp-web-windows-arm64.zip
+            yt-dlp-web-darwin-amd64.tar.gz
+            yt-dlp-web-darwin-arm64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
