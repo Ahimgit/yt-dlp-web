@@ -37,7 +37,6 @@ func NewWSConnectionWrapper(w http.ResponseWriter, r *http.Request) (*WSConnecti
 }
 
 func (sc *WSConnectionWrapper) close() {
-	sc.Mutex.Unlock()
 	err := sc.Conn.Close()
 	if err != nil {
 		log.Println("Unable to close websocket")
