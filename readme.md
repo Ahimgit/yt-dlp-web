@@ -2,11 +2,11 @@
 
 Web UI for yt-dlp for music download with metadata and cover embed.
 
-###Features:
+### Features
 - Simple Web UI with yt-dlp stdout output
 - Automatically updates tag metadata and cover through Deezer API integration
 
-![ui](https://github.com/Ahimgit/yt-dlp-web/assets/6353365/1cf9cf7b-290f-4c18-952e-b7932d2e1064)
+<img src="https://github.com/Ahimgit/yt-dlp-web/assets/6353365/1cf9cf7b-290f-4c18-952e-b7932d2e1064" alt="ui" style="width:55%; height:55%;"> 
 
 ## Building
 
